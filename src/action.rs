@@ -5,4 +5,6 @@ pub enum Action {
     MoveLeft,
     MoveRight,
     SwitchMode,
+    Write(char),
+    NewLine,
 }

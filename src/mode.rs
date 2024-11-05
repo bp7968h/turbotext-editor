@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crossterm::event::{self, KeyCode};
 use anyhow::{Ok, Result};
 use crate::Action;
@@ -5,6 +7,15 @@ use crate::Action;
 pub enum Mode {
     Insert,
     Normal,
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Normal => write!(f, "NORMAL"),
+            Self::Insert => write!(f, "INSERT"),
+        }
+    }
 }
 
 impl Mode {
@@ -24,10 +35,10 @@ impl Mode {
             event::Event::Key(e) => match e.code {
                 KeyCode::Char('q') => Ok(Some(Action::Quit)),
                 KeyCode::Char('i') => Ok(Some(Action::SwitchMode)),
-                KeyCode::Up => Ok(Some(Action::MoveUp)),
-                KeyCode::Down => Ok(Some(Action::MoveDown)),
-                KeyCode::Left => Ok(Some(Action::MoveLeft)),
-                KeyCode::Right => Ok(Some(Action::MoveRight)),
+                KeyCode::Up | KeyCode::Char('k') => Ok(Some(Action::MoveUp)),
+                KeyCode::Down | KeyCode::Char('j') => Ok(Some(Action::MoveDown)),
+                KeyCode::Left | KeyCode::Char('h') => Ok(Some(Action::MoveLeft)),
+                KeyCode::Right | KeyCode::Char('l') => Ok(Some(Action::MoveRight)),
                 _ => Ok(None),
             },
             _ => Ok(None),
@@ -38,6 +49,8 @@ impl Mode {
         match event {
             event::Event::Key(e) => match e.code {
                 KeyCode::Esc => Ok(Some(Action::SwitchMode)),
+                KeyCode::Char(c) => Ok(Some(Action::Write(c))),
+                KeyCode::Enter => Ok(Some(Action::NewLine)),
                 _ => Ok(None),
             },
             _ => Ok(None),
