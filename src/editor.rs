@@ -1,9 +1,10 @@
-use crate::{Action, Mode};
+use crate::{Action, Buffer, Mode};
 use anyhow::Result;
 use crossterm::{cursor, event::read, execute, queue, style::{self, Print, Color, SetForegroundColor, ResetColor}, terminal};
 use std::io::{self, Write};
 
 pub struct Editor {
+    buffer: Buffer,
     size: (u16, u16),
     cursor_y: u16,
     cursor_x: u16,
@@ -11,8 +12,9 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new(buffer: Buffer) -> Self {
         Editor {
+            buffer,
             size: (0,0),
             cursor_y: 0,
             cursor_x: 0,
@@ -21,6 +23,7 @@ impl Editor {
     }
 
     fn draw_surface(&self, stdout: &mut io::Stdout) -> Result<()> {
+        self.draw_buffer(stdout)?;
         self.draw_status_line(stdout)?;
         queue!(stdout, cursor::MoveTo(self.cursor_x, self.cursor_y))?;
         stdout.flush()?;
@@ -28,15 +31,29 @@ impl Editor {
         Ok(())
     }
 
+    fn draw_buffer(&self, stdout: &mut io::Stdout) -> Result<()> {
+        for (i, line) in self.buffer.get_lines().iter().enumerate() {
+            queue!(stdout, cursor::MoveTo(0, i as u16))?;
+            queue!(stdout, Print(line))?;
+        }
+
+        Ok(())
+    }
+
     fn draw_status_line(&self, stdout: &mut io::Stdout) -> Result<()> {
         queue!(stdout, cursor::MoveTo(0, self.size.1 - 1))?;
-        queue!(stdout, SetForegroundColor(Color::DarkGreen), Print(format!(" {}", self.mode)))?;
+        
+        let status_left_text = match self.buffer.get_file() {
+            Some(filename) => format!(" {} - {}", self.mode, filename.clone()),
+            None => format!(" {}", self.mode),
+        };
+        queue!(stdout, SetForegroundColor(Color::DarkGreen), Print(status_left_text))?;
 
-        let status_text = format!("Ln: {}, Col: {}", self.cursor_y, self.cursor_x);
-        let x_position = self.size.0.saturating_sub(status_text.len() as u16 + 1);
+        let status_right_text = format!("Ln: {}, Col: {}", self.cursor_y, self.cursor_x);
+        let x_position = self.size.0.saturating_sub(status_right_text.len() as u16 + 1);
 
-	queue!(stdout, cursor::MoveTo(x_position, self.size.1 - 1))?;
-	queue!(stdout, Print(status_text), ResetColor)?;
+	    queue!(stdout, cursor::MoveTo(x_position, self.size.1 - 1))?;
+	    queue!(stdout, Print(status_right_text), ResetColor)?;
 
         Ok(())
     }
